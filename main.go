@@ -53,6 +53,7 @@ func main() {
 
 	serveMux.HandleFunc("POST /api/chirps", apiCfg.createChirpHandler)
 	serveMux.HandleFunc("GET /api/chirps", apiCfg.getManyChirpsHandler)
+	serveMux.HandleFunc("GET /api/chirps/{id}", apiCfg.getOneChirpsHandler)
 
 	log.Printf("Starting server on :%s\n", port)
 	server.ListenAndServe()
