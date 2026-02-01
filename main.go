@@ -1,137 +1,59 @@
 package main
 
 import (
-	"encoding/json"
+	"database/sql" // postgres driver
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
+	"os"
 	"sync/atomic"
+
+	"github.com/erbatax/chirpy_go/internal/database"
+	"github.com/joho/godotenv"
+
+	_ "github.com/lib/pq"
 )
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
+	db             *database.Queries
 }
 
 func main() {
+	godotenv.Load()
+	dbURL := os.Getenv("DB_URL")
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		fmt.Printf("Can't connect to database. %v", err)
+		os.Exit(1)
+		return
+	}
+
+	port := "8080"
+
 	serveMux := http.NewServeMux()
 	server := http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + port,
 		Handler: serveMux,
 	}
-	apiCfg := &apiConfig{}
+	apiCfg := &apiConfig{
+		db: database.New(db),
+	}
 
 	serveMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
 
 	serveMux.HandleFunc("GET /api/healthz", healthzHandler)
 
 	serveMux.HandleFunc("GET /admin/metrics", apiCfg.hitsHandler)
-	serveMux.HandleFunc("POST /admin/reset", apiCfg.metricsResetHandler)
+	serveMux.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
 
 	serveMux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
 
+	serveMux.HandleFunc("POST /api/users", apiCfg.createUserHandler)
+
+	serveMux.HandleFunc("POST /api/chirps", apiCfg.createChirpHandler)
+	serveMux.HandleFunc("GET /api/chirps", apiCfg.getManyChirpsHandler)
+
+	log.Printf("Starting server on :%s\n", port)
 	server.ListenAndServe()
-}
-
-func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cfg.fileserverHits.Add(1)
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (cfg *apiConfig) hitsHandler(w http.ResponseWriter, r *http.Request) {
-	message := fmt.Sprintf(`<html>
-  <body>
-    <h1>Welcome, Chirpy Admin</h1>
-    <p>Chirpy has been visited %d times!</p>
-  </body>
-</html>`, cfg.fileserverHits.Load())
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(message))
-}
-
-func (cfg *apiConfig) metricsResetHandler(w http.ResponseWriter, r *http.Request) {
-	cfg.fileserverHits.Store(0)
-}
-
-func healthzHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
-}
-
-func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
-	const maxChirpLength = 140
-	type parameters struct {
-		Body string `json:"body"`
-	}
-	type response struct {
-		CleanedBody string `json:"cleaned_body"`
-	}
-	type errorResponse struct {
-		Error string `json:"error"`
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	params := parameters{}
-	err := decoder.Decode(&params)
-	if err != nil {
-		log.Println("Invalid request payload", http.StatusBadRequest)
-
-		respondWithError(w, http.StatusBadRequest, "Something went wrong")
-		return
-	}
-
-	if params.Body == "" {
-		log.Println("Missing 'body' parameter", http.StatusBadRequest)
-
-		respondWithError(w, http.StatusBadRequest, "Something went wrong")
-		return
-	}
-
-	if len(params.Body) > maxChirpLength {
-		log.Printf("Chirp too long: %d characters (max %d)", len(params.Body), maxChirpLength)
-
-		respondWithError(w, http.StatusBadRequest, "Chirp is too long")
-		return
-	}
-
-	badWords := []string{"kerfuffle", "sharbert", "fornax"}
-	cleanedBody := replaceBadWords(params.Body, badWords)
-	resp := response{
-		CleanedBody: cleanedBody,
-	}
-	respondWithJSON(w, http.StatusOK, resp)
-}
-
-func respondWithError(w http.ResponseWriter, code int, msg string) {
-	respondWithJSON(w, code, map[string]string{"error": msg})
-}
-
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	response, err := json.Marshal(payload)
-	if err != nil {
-		respondWithError(w, 500, "Something went wrong")
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(code)
-	w.Write(response)
-}
-
-func replaceBadWords(text string, badWords []string) string {
-	words := strings.Split(text, " ")
-	lowerBadWordsSet := make(map[string]struct{})
-	for _, bw := range badWords {
-		lowerBadWordsSet[strings.ToLower(bw)] = struct{}{}
-	}
-
-	for i, word := range words {
-		lowerWord := strings.ToLower(word)
-		if _, ok := lowerBadWordsSet[lowerWord]; ok {
-			words[i] = "****"
-		}
-	}
-	return strings.Join(words, " ")
 }
