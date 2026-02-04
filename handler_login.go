@@ -7,11 +7,10 @@ import (
 	"time"
 
 	"github.com/erbatax/chirpy_go/internal/auth"
-	"github.com/erbatax/chirpy_go/internal/database"
 	"github.com/google/uuid"
 )
 
-func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -47,19 +46,26 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	hashedPassword, err := auth.HashPassword(params.Password)
+	user, err := cfg.db.GetUserByEmail(r.Context(), params.Email)
 	if err != nil {
-		log.Println("Failed to hash password", http.StatusInternalServerError, err)
+		log.Println("Incorrect email", http.StatusUnauthorized, err)
 
-		respondWithError(w, http.StatusInternalServerError, "Failed to process password")
+		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password")
 		return
 	}
 
-	user, err := cfg.db.CreateUser(r.Context(), database.CreateUserParams{Email: params.Email, HashedPassword: hashedPassword})
+	valid, err := auth.CheckPasswordHash(params.Password, user.HashedPassword)
 	if err != nil {
-		log.Println("Failed to create user", http.StatusInternalServerError, err)
+		log.Println("Failed to check password hash", http.StatusInternalServerError, err)
 
-		respondWithError(w, http.StatusInternalServerError, "Failed to create user")
+		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password")
+		return
+	}
+
+	if !valid {
+		log.Println("Incorrect password", http.StatusUnauthorized)
+
+		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password")
 		return
 	}
 
@@ -69,5 +75,5 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) 
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
 	}
-	respondWithJSON(w, http.StatusCreated, resp)
+	respondWithJSON(w, http.StatusOK, resp)
 }
