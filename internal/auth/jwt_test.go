@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -116,5 +117,39 @@ func TestMakeJWT_DifferentUsers(t *testing.T) {
 	}
 	if parsedID2 != userID2 {
 		t.Errorf("ValidateJWT returned wrong user ID: got %v, want %v", parsedID2, userID2)
+	}
+}
+
+func TestGetBearerToken(t *testing.T) {
+	headers := make(http.Header)
+	headers.Set("Authorization", "Bearer test-token-123")
+
+	token, err := GetBearerToken(headers)
+	if err != nil {
+		t.Fatalf("GetBearerToken failed: %v", err)
+	}
+
+	expectedToken := "test-token-123"
+	if token != expectedToken {
+		t.Errorf("GetBearerToken returned wrong token: got %v, want %v", token, expectedToken)
+	}
+}
+
+func TestGetBearerToken_MissingHeader(t *testing.T) {
+	headers := make(http.Header)
+
+	_, err := GetBearerToken(headers)
+	if err == nil {
+		t.Error("GetBearerToken should fail when Authorization header is missing")
+	}
+}
+
+func TestGetBearerToken_InvalidFormat(t *testing.T) {
+	headers := make(http.Header)
+	headers.Set("Authorization", "InvalidFormatToken")
+
+	_, err := GetBearerToken(headers)
+	if err == nil {
+		t.Error("GetBearerToken should fail for invalid Authorization header format")
 	}
 }

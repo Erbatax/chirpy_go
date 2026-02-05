@@ -17,6 +17,7 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
+	jwtSecret      string
 }
 
 func main() {
@@ -25,6 +26,14 @@ func main() {
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		fmt.Printf("Can't connect to database. %v", err)
+		os.Exit(1)
+		return
+	}
+	defer db.Close()
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		fmt.Println("JWT_SECRET environment variable is not set")
 		os.Exit(1)
 		return
 	}
@@ -37,7 +46,8 @@ func main() {
 		Handler: serveMux,
 	}
 	apiCfg := &apiConfig{
-		db: database.New(db),
+		db:        database.New(db),
+		jwtSecret: jwtSecret,
 	}
 
 	serveMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
