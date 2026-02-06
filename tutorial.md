@@ -9,13 +9,13 @@ cd sql/schema
 ### Up
 
 ```bash
-goose postgres "postgres://user:password@localhost:5432/chirpy" up
+goose postgres "postgres://user:password@localhost:5432/chirpy_go" up
 ```
 
 ### Down
 
 ```bash
-goose postgres "postgres://user:password@localhost:5432/chirpy" down
+goose postgres "postgres://user:password@localhost:5432/chirpy_go" down
 ```
 
 ## Create code from sql queries

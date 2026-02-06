@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (apiCfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
 	}
@@ -28,7 +28,7 @@ func (apiCfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	userID, err := auth.ValidateJWT(jwtToken, apiCfg.jwtSecret)
+	userID, err := auth.ValidateJWT(jwtToken, cfg.jwtSecret)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
 		return
@@ -42,7 +42,7 @@ func (apiCfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	chirp, err := apiCfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
+	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
 		Body:   params.Body,
 		UserID: userID,
 	})

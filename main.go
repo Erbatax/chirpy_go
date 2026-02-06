@@ -15,9 +15,11 @@ import (
 )
 
 type apiConfig struct {
-	fileserverHits atomic.Int32
-	db             *database.Queries
-	jwtSecret      string
+	fileserverHits               atomic.Int32
+	db                           *database.Queries
+	jwtSecret                    string
+	accessTokenExpiresInSeconds  int64
+	refreshTokenExpiresInSeconds int64
 }
 
 func main() {
@@ -46,8 +48,10 @@ func main() {
 		Handler: serveMux,
 	}
 	apiCfg := &apiConfig{
-		db:        database.New(db),
-		jwtSecret: jwtSecret,
+		db:                           database.New(db),
+		jwtSecret:                    jwtSecret,
+		accessTokenExpiresInSeconds:  3600,           // Default to 1 hour
+		refreshTokenExpiresInSeconds: 60 * 24 * 3600, // Default to 60 days
 	}
 
 	serveMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
@@ -61,6 +65,8 @@ func main() {
 
 	serveMux.HandleFunc("POST /api/users", apiCfg.createUserHandler)
 	serveMux.HandleFunc("POST /api/login", apiCfg.loginHandler)
+	serveMux.HandleFunc("POST /api/refresh", apiCfg.refreshHandler)
+	serveMux.HandleFunc("POST /api/revoke", apiCfg.revokeHandler)
 
 	serveMux.HandleFunc("POST /api/chirps", apiCfg.createChirpHandler)
 	serveMux.HandleFunc("GET /api/chirps", apiCfg.getManyChirpsHandler)
