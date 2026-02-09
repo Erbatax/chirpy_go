@@ -64,6 +64,7 @@ func main() {
 	serveMux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
 
 	serveMux.HandleFunc("POST /api/users", apiCfg.createUserHandler)
+	serveMux.HandleFunc("PUT /api/users", apiCfg.updateUserHandler)
 	serveMux.HandleFunc("POST /api/login", apiCfg.loginHandler)
 	serveMux.HandleFunc("POST /api/refresh", apiCfg.refreshHandler)
 	serveMux.HandleFunc("POST /api/revoke", apiCfg.revokeHandler)
@@ -71,6 +72,7 @@ func main() {
 	serveMux.HandleFunc("POST /api/chirps", apiCfg.createChirpHandler)
 	serveMux.HandleFunc("GET /api/chirps", apiCfg.getManyChirpsHandler)
 	serveMux.HandleFunc("GET /api/chirps/{id}", apiCfg.getOneChirpsHandler)
+	serveMux.HandleFunc("DELETE /api/chirps/{id}", apiCfg.deleteChirpHandler)
 
 	log.Printf("Starting server on :%s\n", port)
 	server.ListenAndServe()
