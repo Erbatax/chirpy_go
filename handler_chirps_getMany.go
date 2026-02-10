@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/erbatax/chirpy_go/internal/database"
 	"github.com/google/uuid"
 )
 
@@ -16,7 +17,23 @@ func (cfg *apiConfig) getManyChirpsHandler(w http.ResponseWriter, r *http.Reques
 		UserID    uuid.UUID `json:"user_id"`
 	}
 
-	chirps, err := cfg.db.GetManyChirps(r.Context())
+	queryAuthorId := r.URL.Query().Get("author_id")
+	var authorId uuid.UUID
+	var err error
+	if queryAuthorId != "" {
+		authorId, err = uuid.Parse(queryAuthorId)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid author_id")
+			return
+		}
+	}
+
+	var chirps []database.Chirp
+	if authorId != uuid.Nil {
+		chirps, err = cfg.db.GetChirpsByUserID(r.Context(), authorId)
+	} else {
+		chirps, err = cfg.db.GetManyChirps(r.Context())
+	}
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Something went wrong")
 		return
