@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/erbatax/chirpy_go/internal/database"
@@ -28,6 +29,12 @@ func (cfg *apiConfig) getManyChirpsHandler(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
+	sortBy := r.URL.Query().Get("sort")
+	if sortBy != "" && sortBy != "asc" && sortBy != "desc" {
+		respondWithError(w, http.StatusBadRequest, "Invalid sort parameter")
+		return
+	}
+
 	var chirps []database.Chirp
 	if authorId != uuid.Nil {
 		chirps, err = cfg.db.GetChirpsByUserID(r.Context(), authorId)
@@ -40,6 +47,12 @@ func (cfg *apiConfig) getManyChirpsHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	respChirps := make([]chripResponse, 0, len(chirps))
+	if sortBy == "desc" {
+		// Reverse the order of chirps for descending sort
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].CreatedAt.After(chirps[j].CreatedAt)
+		})
+	}
 	for _, chirp := range chirps {
 		respChirps = append(respChirps, chripResponse{
 			ID:        chirp.ID,
