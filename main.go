@@ -74,6 +74,8 @@ func main() {
 	serveMux.HandleFunc("GET /api/chirps/{id}", apiCfg.getOneChirpsHandler)
 	serveMux.HandleFunc("DELETE /api/chirps/{id}", apiCfg.deleteChirpHandler)
 
+	serveMux.HandleFunc("POST /api/polka/webhooks", apiCfg.polkaWebhookHandler)
+
 	log.Printf("Starting server on :%s\n", port)
 	server.ListenAndServe()
 }
