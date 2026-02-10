@@ -18,6 +18,7 @@ type apiConfig struct {
 	fileserverHits               atomic.Int32
 	db                           *database.Queries
 	jwtSecret                    string
+	polkaKey                     string
 	accessTokenExpiresInSeconds  int64
 	refreshTokenExpiresInSeconds int64
 }
@@ -40,6 +41,13 @@ func main() {
 		return
 	}
 
+	polkaKey := os.Getenv("POLKA_KEY")
+	if polkaKey == "" {
+		fmt.Println("POLKA_KEY environment variable is not set")
+		os.Exit(1)
+		return
+	}
+
 	port := "8080"
 
 	serveMux := http.NewServeMux()
@@ -50,6 +58,7 @@ func main() {
 	apiCfg := &apiConfig{
 		db:                           database.New(db),
 		jwtSecret:                    jwtSecret,
+		polkaKey:                     polkaKey,
 		accessTokenExpiresInSeconds:  3600,           // Default to 1 hour
 		refreshTokenExpiresInSeconds: 60 * 24 * 3600, // Default to 60 days
 	}
